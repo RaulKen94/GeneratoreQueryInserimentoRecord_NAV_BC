@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generatore Query T-SQL di Inserimento Record</title>
+    <!-- Inizio: Codice per la Favicon -->
+    <!-- Per un file .ico (il più compatibile) -->
+    <link rel="icon" href="logo.ico" type="image/x-icon">
+    <!-- Per un file .png (opzionale, per browser moderni) -->
+    <link rel="icon" href="logo.png" type="image/png">
+    <!-- Fine: Codice per la Favicon -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 30px;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        }
+        h1 {
+            color: #2c3e50;
+            font-size: 2.25rem;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        .input-group input[type="text"],
+        .input-group textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            color: #333;
+            transition: border-color 0.3s ease;
+        }
+        .input-group input[type="text"]:focus,
+        .input-group textarea:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+        .input-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            justify-content: center;
+        }
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary {
+            background-color: #007bff;
+            color: #ffffff;
+        }
+        .btn-primary:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+            color: #ffffff;
+        }
+        .btn-secondary:hover {
+            background-color: #5a6268;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+        }
+        .output-section {
+            margin-top: 40px;
+            padding: 25px;
+            background-color: #e9f7ef;
+            border-radius: 12px;
+            border: 1px solid #d4edda;
+            position: relative;
+        }
+        .output-section pre {
+            white-space: pre-wrap;
+            word-break: break-all;
+            background-color: #f0f0f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: #222;
+        }
+        .output-section .copy-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background-color: #28a745;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .output-section .copy-btn:hover {
+            background-color: #218838;
+        }
+        .count-info {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 5px;
+            text-align: right;
+        }
+        .notification {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #ffeeba;
+            display: none; /* Hidden by default */
+        }
+        .notification.show {
+            display: block;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-6">
+    <div class="container">
+        <h1>Generatore Query T-SQL di Inserimento Record</h1>
+
+        <div class="mb-6 input-group">
+            <label for="tableName" class="block text-gray-700 text-sm font-bold mb-2">Nome Tabella:</label>
+            <input type="text" id="tableName" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="table_name">
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div class="input-group">
+                <label for="columnList" class="block text-gray-700 text-sm font-bold mb-2">Elenco Colonne (separate da virgola o nuova riga):</label>
+                <textarea id="columnList" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="column1, column2, column3"></textarea>
+                <div id="columnCount" class="count-info">Conteggio: 0</div>
+            </div>
+
+            <div class="input-group">
+                <label for="typeList" class="block text-gray-700 text-sm font-bold mb-2">Elenco Tipi di Campo (NAV-like, separate da virgola o nuova riga):</label>
+                <textarea id="typeList" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Text, Integer, Date"></textarea>
+                <div id="typeCount" class="count-info">Conteggio: 0</div>
+            </div>
+
+            <div class="input-group">
+                <label for="fieldClassList" class="block text-gray-700 text-sm font-bold mb-2">Elenco FieldClass (Normal, FlowField, FlowFilter, separate da virgola o nuova riga):</label>
+                <textarea id="fieldClassList" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Normal, Normal, FlowField"></textarea>
+                <div id="fieldClassCount" class="count-info">Conteggio: 0</div>
+            </div>
+        </div>
+
+        <div id="pruningNotification" class="notification"></div>
+
+        <div class="button-group">
+            <button id="generateBtn" class="btn btn-primary">Elabora</button>
+            <button id="clearBtn" class="btn btn-secondary">Svuota campi</button>
+        </div>
+
+        <div class="output-section hidden" id="outputSection">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">Output Query T-SQL</h2>
+            <button class="copy-btn" id="copyBtn">Copia</button>
+            <pre id="queryOutput" class="rounded-lg"></pre>
+            <div id="outputCount" class="count-info">Valori coinvolti: 0</div>
+        </div>
+    </div>
+
+    <script>
+        // Get references to DOM elements
+        const tableNameInput = document.getElementById('tableName');
+        const columnListInput = document.getElementById('columnList');
+        const typeListInput = document.getElementById('typeList');
+        const fieldClassListInput = document.getElementById('fieldClassList');
+        const generateBtn = document.getElementById('generateBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const queryOutput = document.getElementById('queryOutput');
+        const outputSection = document.getElementById('outputSection');
+        const copyBtn = document.getElementById('copyBtn');
+        const columnCount = document.getElementById('columnCount');
+        const typeCount = document.getElementById('typeCount');
+        const fieldClassCount = document.getElementById('fieldClassCount');
+        const outputCount = document.getElementById('outputCount');
+        const pruningNotification = document.getElementById('pruningNotification');
+
+        // Transcoding map for NAV/BC types to SQL types and default values
+        const typeTranscoding = {
+            'Blob': { sql: 'varchar', default: "''" },
+            'BigInteger': { sql: 'int', default: '0' },
+            'Boolean': { sql: 'int', default: '0' },
+            'Code': { sql: 'varchar', default: "''" },
+            'Date': { sql: 'datetime', default: "'1753-01-01 00:00:00.000'" },
+            'DateFormula': { sql: 'varchar', default: "''" },
+            'DateTime': { sql: 'datetime', default: "'1753-01-01 00:00:00.000'" },
+            'Decimal': { sql: 'varchar', default: "'0.00'" },
+            'Duration': { sql: 'int', default: '0' },
+            'GUID': { sql: 'varchar', default: "''" },
+            'Integer': { sql: 'int', default: '0' },
+            'Media': { sql: 'varchar', default: "''" },
+            'MediaSet': { sql: 'varchar', default: "''" },
+            'Option': { sql: 'int', default: '0' },
+            'RecordID': { sql: 'varchar', default: "''" },
+            'TableFilter': { sql: 'varchar', default: "''" },
+            'Text': { sql: 'varchar', default: "''" },
+            'Time': { sql: 'datetime', default: "'1753-01-01 00:00:00.000'" }
+        };
+
+        // Function to update counts for input lists
+        function updateCounts() {
+            columnCount.textContent = `Conteggio: ${cleanAndSplit(columnListInput.value).length}`;
+            typeCount.textContent = `Conteggio: ${cleanAndSplit(typeListInput.value).length}`;
+            fieldClassCount.textContent = `Conteggio: ${cleanAndSplit(fieldClassListInput.value).length}`;
+        }
+
+        // Helper function to clean and split input strings
+        function cleanAndSplit(text) {
+            return text.split(/[\n,]+/).map(item => item.trim()).filter(item => item !== '');
+        }
+
+        // Event listener for input changes to update counts
+        columnListInput.addEventListener('input', updateCounts);
+        typeListInput.addEventListener('input', updateCounts);
+        fieldClassListInput.addEventListener('input', updateCounts);
+
+        // Initial count update on page load
+        updateCounts();
+
+        // Event listener for the "Elabora" button
+        generateBtn.addEventListener('click', () => {
+            let tableName = tableNameInput.value.trim();
+            let fullTableName = '';
+
+            // Check if tableName already contains "dbo."
+            if (tableName === '') {
+                fullTableName = 'dbo.[table_name]'; // Default if empty
+            } else if (tableName.toLowerCase().startsWith('dbo.')) {
+                // If it starts with dbo., assume it's already correctly formatted or needs minimal adjustment
+                // Remove existing brackets if any, then re-add them to ensure consistency
+                let cleanedTableName = tableName.replace(/^dbo\./i, '').replace(/^\[|\]$/g, '');
+                fullTableName = `dbo.[${cleanedTableName}]`;
+            } else {
+                fullTableName = `dbo.[${tableName}]`;
+            }
+
+
+            let columns = cleanAndSplit(columnListInput.value);
+            let types = cleanAndSplit(typeListInput.value);
+            let fieldClasses = cleanAndSplit(fieldClassListInput.value);
+
+            // Validate input lengths
+            if (columns.length === 0 || types.length === 0 || fieldClasses.length === 0) {
+                queryOutput.textContent = 'Errore: Tutti gli elenchi (Colonne, Tipi di Campo, FieldClass) devono contenere almeno un valore.';
+                outputSection.classList.remove('hidden');
+                outputCount.textContent = `Valori coinvolti: 0`;
+                pruningNotification.classList.remove('show');
+                return;
+            }
+
+            if (columns.length !== types.length || columns.length !== fieldClasses.length) {
+                queryOutput.textContent = 'Errore: Gli elenchi devono avere lo stesso numero di elementi.';
+                outputSection.classList.remove('hidden');
+                outputCount.textContent = `Valori coinvolti: 0`;
+                pruningNotification.classList.remove('show');
+                return;
+            }
+
+            // Step 2: Pruning FlowField and FlowFilter
+            let prunedColumns = [];
+            let prunedTypes = [];
+            let prunedFieldClasses = [];
+            let removedColumns = [];
+
+            for (let i = 0; i < fieldClasses.length; i++) {
+                const fieldClass = fieldClasses[i].toLowerCase();
+                if (fieldClass === 'normal') {
+                    prunedColumns.push(columns[i]);
+                    prunedTypes.push(types[i]);
+                    prunedFieldClasses.push(fieldClasses[i]);
+                } else if (fieldClass === 'flowfield' || fieldClass === 'flowfilter') {
+                    removedColumns.push(columns[i]);
+                }
+            }
+
+            let notificationMessage = '';
+            if (removedColumns.length > 0) {
+                notificationMessage = `Attenzione: Sono state rimosse ${removedColumns.length} colonne di tipo FlowField/FlowFilter: ${removedColumns.join(', ')}.`;
+                pruningNotification.textContent = notificationMessage;
+                pruningNotification.classList.add('show');
+            } else {
+                pruningNotification.classList.remove('show');
+            }
+
+            columns = prunedColumns;
+            types = prunedTypes;
+            fieldClasses = prunedFieldClasses; // Although not used after pruning, kept for consistency
+
+            if (columns.length === 0) {
+                queryOutput.textContent = 'Nessuna colonna "Normal" trovata dopo la pulizia. Non è possibile generare la query.';
+                outputSection.classList.remove('hidden');
+                outputCount.textContent = `Valori coinvolti: 0`;
+                return;
+            }
+
+            // Step 3: Format columns
+            const formattedColumns = columns.map(col => {
+                // Replace dots with underscores and wrap in square brackets
+                return `[${col.replace(/\./g, '_')}]`;
+            }).join(', ');
+
+            // Step 4: Prepare values based on transcoding
+            const values = types.map(type => {
+                const normalizedType = type.trim();
+                const transcode = typeTranscoding[normalizedType];
+                if (transcode) {
+                    return transcode.default;
+                } else {
+                    // Fallback for unknown types, e.g., treat as varchar
+                    console.warn(`Tipo di campo sconosciuto: ${type}. Trattato come varchar.`);
+                    return "''";
+                }
+            }).join(', ');
+
+            // Construct the T-SQL query
+            const query = `INSERT INTO ${fullTableName} (\n${formattedColumns})\nVALUES (\n    ${values}\n);`;
+
+            // Display the output
+            queryOutput.textContent = query;
+            outputCount.textContent = `Valori coinvolti: ${columns.length}`;
+            outputSection.classList.remove('hidden');
+        });
+
+        // Event listener for the "Svuota campi" button
+        clearBtn.addEventListener('click', () => {
+            tableNameInput.value = '';
+            columnListInput.value = '';
+            typeListInput.value = '';
+            fieldClassListInput.value = '';
+            queryOutput.textContent = '';
+            outputSection.classList.add('hidden');
+            pruningNotification.classList.remove('show');
+            pruningNotification.textContent = '';
+            updateCounts(); // Reset counts
+        });
+
+        // Event listener for the "Copia" button
+        copyBtn.addEventListener('click', () => {
+            const textToCopy = queryOutput.textContent;
+            const textArea = document.createElement('textarea');
+            textArea.value = textToCopy;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                copyBtn.textContent = 'Copiato!';
+                setTimeout(() => {
+                    copyBtn.textContent = 'Copia';
+                }, 2000);
+            } catch (err) {
+                console.error('Impossibile copiare il testo: ', err);
+                // Fallback for older browsers or if execCommand fails
+                alert('Impossibile copiare il testo. Si prega di selezionare e copiare manualmente.');
+            }
+            document.body.removeChild(textArea);
+        });
+    </script>
+</body>
+</html>

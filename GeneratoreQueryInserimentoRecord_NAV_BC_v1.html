@@ -151,9 +151,15 @@
     <div class="container">
         <h1>Generatore Query T-SQL di Inserimento Record</h1>
 
-        <div class="mb-6 input-group">
-            <label for="tableName" class="block text-gray-700 text-sm font-bold mb-2">Nome Tabella:</label>
-            <input type="text" id="tableName" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="table_name">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+            <div class="md:col-span-2 input-group">
+                <label for="tableName" class="block text-gray-700 text-sm font-bold mb-2">Nome Tabella:</label>
+                <input type="text" id="tableName" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="table_name">
+            </div>
+            <div class="input-group">
+                <label for="colsPerLine" class="block text-gray-700 text-sm font-bold mb-2">Colonne per riga (Impaginazione):</label>
+                <input type="number" id="colsPerLine" min="1" value="10" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="es. 11">
+            </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -194,6 +200,7 @@
     <script>
         // Get references to DOM elements
         const tableNameInput = document.getElementById('tableName');
+        const colsPerLineInput = document.getElementById('colsPerLine');
         const columnListInput = document.getElementById('columnList');
         const typeListInput = document.getElementById('typeList');
         const fieldClassListInput = document.getElementById('fieldClassList');
@@ -242,6 +249,16 @@
             return text.split(/[\n,]+/).map(item => item.trim()).filter(item => item !== '');
         }
 
+        // Helper function to split array into chunks of given size
+        function chunkArray(arr, chunkSize) {
+            if (chunkSize <= 0) chunkSize = 10;
+            const chunks = [];
+            for (let i = 0; i < arr.length; i += chunkSize) {
+                chunks.push(arr.slice(i, i + chunkSize));
+            }
+            return chunks;
+        }
+
         // Event listener for input changes to update counts
         columnListInput.addEventListener('input', updateCounts);
         typeListInput.addEventListener('input', updateCounts);
@@ -255,6 +272,12 @@
             let tableName = tableNameInput.value.trim();
             let fullTableName = '';
 
+            // Get columns per line limit
+            let colsPerLine = parseInt(colsPerLineInput.value, 10);
+            if (isNaN(colsPerLine) || colsPerLine < 1) {
+                colsPerLine = 10; // Fallback default
+            }
+
             // Check if tableName already contains "dbo."
             if (tableName === '') {
                 fullTableName = 'dbo.[table_name]'; // Default if empty
@@ -266,7 +289,6 @@
             } else {
                 fullTableName = `dbo.[${tableName}]`;
             }
-
 
             let columns = cleanAndSplit(columnListInput.value);
             let types = cleanAndSplit(typeListInput.value);
@@ -326,27 +348,30 @@
                 return;
             }
 
-            // Step 3: Format columns
-            const formattedColumns = columns.map(col => {
-                // Replace dots with underscores and wrap in square brackets
-                return `[${col.replace(/\./g, '_')}]`;
-            }).join(', ');
+            // Step 3: Format columns array (converte '.', '/' e '%' in '_')
+            const formattedColumns = columns.map(col => `[${col.replace(/[\.\/%]/g, '_')}]`);
 
-            // Step 4: Prepare values based on transcoding
+            // Step 4: Prepare values array based on transcoding
             const values = types.map(type => {
                 const normalizedType = type.trim();
                 const transcode = typeTranscoding[normalizedType];
                 if (transcode) {
                     return transcode.default;
                 } else {
-                    // Fallback for unknown types, e.g., treat as varchar
                     console.warn(`Tipo di campo sconosciuto: ${type}. Trattato come varchar.`);
                     return "''";
                 }
-            }).join(', ');
+            });
 
-            // Construct the T-SQL query
-            const query = `INSERT INTO ${fullTableName} (\n${formattedColumns})\nVALUES (\n    ${values}\n);`;
+            // Step 5: Chunk columns and values according to user input
+            const columnChunks = chunkArray(formattedColumns, colsPerLine);
+            const valueChunks = chunkArray(values, colsPerLine);
+
+            const formattedColumnLines = columnChunks.map(chunk => chunk.join(', ')).join(',\n    ');
+            const formattedValueLines = valueChunks.map(chunk => chunk.join(', ')).join(',\n    ');
+
+            // Construct the T-SQL query with multiline wrapping
+            const query = `INSERT INTO ${fullTableName} (\n    ${formattedColumnLines}\n)\nVALUES (\n    ${formattedValueLines}\n);`;
 
             // Display the output
             queryOutput.textContent = query;
@@ -357,6 +382,7 @@
         // Event listener for the "Svuota campi" button
         clearBtn.addEventListener('click', () => {
             tableNameInput.value = '';
+            colsPerLineInput.value = '10';
             columnListInput.value = '';
             typeListInput.value = '';
             fieldClassListInput.value = '';
